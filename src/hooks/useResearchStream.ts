@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { useResearch } from './contexts/ResearchContext';
-import type { StreamEvent, ActivityMessage } from '@/types/research';
+import type { StreamEvent, ActivityMessage, ResearchResult } from '@/types/research';
 
 interface UseResearchStreamOptions {
   sessionId: string | null;
@@ -41,7 +41,7 @@ export function useResearchStream({ sessionId, enabled = true }: UseResearchStre
             // Update results progressively
             dispatch({
               type: 'UPDATE_RESULTS',
-              payload: streamEvent.data,
+              payload: streamEvent.data as Partial<ResearchResult>,
             });
             break;
 

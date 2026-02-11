@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { validateSession } from '@/lib/auth/session';
+import { AppError } from '@/lib/errors';
+import { orchestrator } from '@/services/research';
 
 /**
  * POST /api/research/clarify
  *
- * Submit answers to clarifying questions and continue research
- *
- * TODO: Pass answers to research agent and continue processing
+ * Submit answers to clarifying questions and continue research.
  */
 export async function POST(request: NextRequest) {
   try {
+    await validateSession(request);
+
     const body = await request.json();
     const { sessionId, answers } = body;
 
@@ -19,16 +22,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // TODO: Store answers in database
-    // TODO: Continue research with clarified parameters
-    console.log('Received answers for session:', sessionId, answers);
+    await orchestrator.clarify(sessionId, answers);
 
     return NextResponse.json({
       status: 'researching',
       message: 'Research continuing with your preferences',
     });
-
   } catch (error) {
+    if (error instanceof AppError) {
+      return NextResponse.json({ error: error.message }, { status: error.statusCode });
+    }
     console.error('Error submitting answers:', error);
     return NextResponse.json(
       { error: 'Failed to submit answers' },
