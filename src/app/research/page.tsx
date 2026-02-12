@@ -1,80 +1,77 @@
 'use client';
 
-import { ResearchProvider, useResearch } from '@/hooks/contexts/ResearchContext';
-import { ResearchQueryForm } from '@/components/research/ResearchQueryForm';
-import { ClarifyingQuestions } from '@/components/research/ClarifyingQuestions';
-import { ResearchStream } from '@/components/research/ResearchStream';
-import { ResearchResults } from '@/components/research/ResearchResults';
-import { Button } from '@/components/ui/button';
-import { ArrowLeft, RotateCcw } from 'lucide-react';
-import Link from 'next/link';
-
-function ResearchPageContent() {
-  const { state, reset } = useResearch();
-
-  return (
-    <div className="container max-w-5xl mx-auto py-8 px-4 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-bold">Hawaiian Research Assistant</h1>
-          <p className="text-muted-foreground">
-            Explore Hawaiian history and culture through our curated databases
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" asChild>
-            <Link href="/research/history">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              View History
-            </Link>
-          </Button>
-          {state.status !== 'idle' && (
-            <Button variant="outline" onClick={reset}>
-              <RotateCcw className="mr-2 h-4 w-4" />
-              New Research
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {/* Query Form - Always visible when idle or after reset */}
-      {state.status === 'idle' && <ResearchQueryForm />}
-
-      {/* Clarifying Questions - Show when agent needs more info */}
-      {state.status === 'clarifying' && <ClarifyingQuestions />}
-
-      {/* Research Stream - Show when researching or complete */}
-      {(state.status === 'researching' || state.status === 'complete') && (
-        <>
-          <ResearchStream />
-
-          {/* Results - Show when complete */}
-          {state.status === 'complete' && state.results && <ResearchResults />}
-        </>
-      )}
-
-      {/* Error State */}
-      {state.status === 'error' && state.error && (
-        <div className="p-6 border-2 border-destructive rounded-lg bg-destructive/5">
-          <h2 className="text-lg font-semibold text-destructive mb-2">
-            Research Error
-          </h2>
-          <p className="text-sm text-muted-foreground mb-4">{state.error}</p>
-          <Button onClick={reset} variant="outline">
-            <RotateCcw className="mr-2 h-4 w-4" />
-            Start Over
-          </Button>
-        </div>
-      )}
-    </div>
-  );
-}
+import { useAuth } from "@/hooks/contexts/AuthContext";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 export default function ResearchPage() {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-zinc-50">
+        <div className="text-lg text-zinc-600">Loading...</div>
+      </div>
+    );
+  }
+
   return (
-    <ResearchProvider>
-      <ResearchPageContent />
-    </ResearchProvider>
+    <div className="min-h-screen bg-zinc-50 p-8">
+      <div className="mx-auto max-w-6xl">
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold text-zinc-900 mb-2">Research</h1>
+          <p className="text-zinc-600">
+            Explore research features and tools
+          </p>
+        </div>
+
+        {!isAuthenticated ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Authentication Required</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="mb-4 text-zinc-600">
+                Please log in to access research features.
+              </p>
+              <Link href="/login">
+                <Button>Go to Login</Button>
+              </Link>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Research Tools</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-zinc-600">
+                  Research features coming soon...
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Research</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-zinc-600">
+                  No research history available yet.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        <div className="mt-8">
+          <Link href="/">
+            <Button variant="outline">Back to Home</Button>
+          </Link>
+        </div>
+      </div>
+    </div>
   );
 }

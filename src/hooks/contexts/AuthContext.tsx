@@ -2,7 +2,6 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { AuthUser } from '@/types/auth';
-import { useRouter } from 'next/navigation';
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -22,7 +21,6 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const router = useRouter();
 
   // Check for existing session on mount
   useEffect(() => {

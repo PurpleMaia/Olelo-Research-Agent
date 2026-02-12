@@ -27,6 +27,7 @@ export async function login(identifier: string, password: string): Promise<AuthU
         throw Errors.INVALID_CREDENTIALS;
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password_hash, ...account } = accountResult
 
     console.log('[login] Account found:', account.id.slice(0, 6), '... |', account.username);

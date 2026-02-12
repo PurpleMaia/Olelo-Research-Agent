@@ -8,7 +8,7 @@ import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious
 import { Separator } from "@/components/ui/separator";
 
 export default function Home() {
-  const { user, isLoading, isAuthenticated, logout } = useAuth();
+  const { user, isLoading, isAuthenticated } = useAuth();
 
   if (isLoading) {
     return (
@@ -44,7 +44,7 @@ function LandingPage() {
                     </p>
 
                     <p>
-                      The multi-tenancy structure operates on two levels: system-level and organization-level. At the system level, developers and platform maintainers have sysadmin privileges with full access across all organizations. At the organization level, each organization has its own admins who manage their team members and resources. Regular users belong to one or more organizations with either admin or member roles, determining their permissions within that organization's scope.
+                      The multi-tenancy structure operates on two levels: system-level and organization-level. At the system level, developers and platform maintainers have sysadmin privileges with full access across all organizations. At the organization level, each organization has its own admins who manage their team members and resources. Regular users belong to one or more organizations with either admin or member roles, determining their permissions within that organization&apos;s scope.
                     </p>
 
                     <p>
