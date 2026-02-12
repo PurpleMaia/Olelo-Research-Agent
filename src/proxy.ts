@@ -4,7 +4,7 @@ import type { NextRequest } from "next/server";
 const USER_COOKIE_NAME = "session_token";
 const SYSADMIN_COOKIE_NAME = "sysadmin_token";
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const hasUserCookie = request.cookies.get(USER_COOKIE_NAME);
   const hasSysadminCookie = request.cookies.get(SYSADMIN_COOKIE_NAME);
 
