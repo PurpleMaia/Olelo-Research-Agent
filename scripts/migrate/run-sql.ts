@@ -42,6 +42,7 @@ async function main() {
     console.log(`Executing migration SQL...`);
     await pool.query(sql);
     console.log('Migration completed successfully!');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (err: any) {
     console.error('Migration failed:', err.message);
     if (err.detail) console.error('Detail:', err.detail);

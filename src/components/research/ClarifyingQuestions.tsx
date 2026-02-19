@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import { HelpCircle, ArrowRight } from 'lucide-react';
-import type { ClarifyingQuestion, QuestionAnswer } from '@/types/research';
+import type { QuestionAnswer } from '@/types/research';
 
 export function ClarifyingQuestions() {
   const { state, submitAnswers } = useResearch();
@@ -69,7 +69,7 @@ export function ClarifyingQuestions() {
     setIsSubmitting(true);
     try {
       await submitAnswers(questionAnswers);
-    } catch (err) {
+    } catch {
       setError('Failed to submit answers. Please try again.');
     } finally {
       setIsSubmitting(false);

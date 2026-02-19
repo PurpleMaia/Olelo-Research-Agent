@@ -56,7 +56,7 @@ export default function ResearchHistoryPage() {
 
       // Remove from local state
       setSessions((prev) => prev.filter((s) => s.id !== sessionId));
-    } catch (err) {
+    } catch {
       alert('Failed to delete session');
     }
   };

@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { db } from '@/db/kysely/client';
 import { researchConfig } from '@/lib/config/research';
-import { embed, embedBatch } from './embedding';
+import { embedBatch } from './embedding';
 
 export interface IngestDocumentInput {
   title: string;

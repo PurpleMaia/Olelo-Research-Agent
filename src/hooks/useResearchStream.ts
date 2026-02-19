@@ -62,6 +62,7 @@ export function useResearchStream({ sessionId, enabled = true }: UseResearchStre
             // Received clarifying questions mid-research (edge case)
             dispatch({
               type: 'ADD_CLARIFYING_QUESTIONS',
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               payload: streamEvent.data as any,
             });
             break;

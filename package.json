@@ -16,7 +16,8 @@
     "migrate:up": "./scripts/migrate/up.sh",
     "migrate:down": "./scripts/migrate/down.sh",
     "migrate:version": "./scripts/migrate/version.sh",
-    "migrate:force": "./scripts/migrate/force.sh"
+    "migrate:force": "./scripts/migrate/force.sh",
+    "ingest:seed": "tsx scripts/ingest/seed-documents.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.74.0",

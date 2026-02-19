@@ -1,66 +1,82 @@
 'use client';
 
 import { useAuth } from "@/hooks/contexts/AuthContext";
-import { ResearchProvider } from "@/hooks/contexts/ResearchContext";
+import { useResearch, ResearchProvider } from "@/hooks/contexts/ResearchContext";
 import { ResearchQueryForm } from "@/components/research/ResearchQueryForm";
 import { ClarifyingQuestions } from "@/components/research/ClarifyingQuestions";
 import { ResearchStream } from "@/components/research/ResearchStream";
 import { ResearchResults } from "@/components/research/ResearchResults";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { RotateCcw } from "lucide-react";
 import Link from "next/link";
+
+function ResearchPageContent() {
+  const { state, reset } = useResearch();
+
+  return (
+    <div className="space-y-6">
+      {/* Query form: visible when idle or after an error */}
+      {(state.status === 'idle' || state.status === 'error') && (
+        <ResearchQueryForm />
+      )}
+
+      {/* Clarifying questions: visible when agent needs more context */}
+      {state.status === 'clarifying' && <ClarifyingQuestions />}
+
+      {/* Activity stream: visible while researching or once complete */}
+      {(state.status === 'researching' || state.status === 'complete' || state.activityStream.length > 0) && (
+        <ResearchStream />
+      )}
+
+      {/* Results: visible once research is complete */}
+      {state.results && <ResearchResults />}
+
+      {/* Reset: lets user start a new query after completion or error */}
+      {(state.status === 'complete' || state.status === 'error') && (
+        <div className="flex justify-center pt-2">
+          <Button variant="outline" onClick={reset}>
+            <RotateCcw className="mr-2 h-4 w-4" />
+            New Research
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function ResearchPage() {
   const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-50">
-        <div className="text-lg text-zinc-600">Loading...</div>
+      <div className="flex items-center justify-center h-64">
+        <div className="text-lg text-muted-foreground">Loading...</div>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen bg-zinc-50 p-8">
-      <div className="mx-auto max-w-4xl">
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold text-zinc-900 mb-2">Research</h1>
-            <p className="text-zinc-600">
-              Explore Hawaiian history, culture, and traditional practices
-            </p>
-          </div>
-          <Link href="/dashboard">
-            <Button variant="outline">Back to Dashboard</Button>
+  if (!isAuthenticated) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Authentication Required</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="mb-4 text-muted-foreground">
+            Please log in to access research features.
+          </p>
+          <Link href="/login">
+            <Button>Go to Login</Button>
           </Link>
-        </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
-        {!isAuthenticated ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>Authentication Required</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="mb-4 text-zinc-600">
-                Please log in to access research features.
-              </p>
-              <Link href="/login">
-                <Button>Go to Login</Button>
-              </Link>
-            </CardContent>
-          </Card>
-        ) : (
-          <ResearchProvider>
-            <div className="space-y-6">
-              <ResearchQueryForm />
-              <ClarifyingQuestions />
-              <ResearchStream />
-              <ResearchResults />
-            </div>
-          </ResearchProvider>
-        )}
-      </div>
-    </div>
+  return (
+    <ResearchProvider>
+      <ResearchPageContent />
+    </ResearchProvider>
   );
 }

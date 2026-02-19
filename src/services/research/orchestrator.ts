@@ -78,6 +78,7 @@ export async function execute(sessionId: string, stream: ResearchStream): Promis
     // Step 1: Thinking
     sendActivity(stream, 'thinking', 'Analyzing your research question...');
     const analysis = await claude.analyzeQuery(session.query);
+    sendActivity(stream, 'thinking', `Identified ${analysis.searchTerms.length} search terms`);
     await sleep(500); // Brief pause for UX
 
     // Step 2: Embed the query
