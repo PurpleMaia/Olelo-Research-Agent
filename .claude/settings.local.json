@@ -3,7 +3,10 @@
     "allow": [
       "Bash(npx next build:*)",
       "Bash(where:*)",
-      "Bash(test:*)"
+      "Bash(test:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npm run lint:*)",
+      "Bash(docker context ls:*)"
     ]
   }
 }
