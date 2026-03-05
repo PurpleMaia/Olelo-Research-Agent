@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Trash2, Clock } from 'lucide-react';
+import { Plus, Search, Trash2, Clock, MessageSquare } from 'lucide-react';
 import type { ResearchSession } from '@/types/research';
 
 function truncateQuery(query: string, maxLength = 55): string {
@@ -32,13 +32,17 @@ function formatRelativeTime(date: Date): string {
 export function ResearchSidebar() {
   const pathname = usePathname();
   const [sessions, setSessions] = useState<ResearchSession[]>([]);
+  const [feedbackIds, setFeedbackIds] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     fetch('/api/research/history', { credentials: 'include' })
-      .then((res) => (res.ok ? res.json() : { sessions: [] }))
-      .then((data) => setSessions(data.sessions ?? []))
+      .then((res) => (res.ok ? res.json() : { sessions: [], feedbackSessionIds: [] }))
+      .then((data) => {
+        setSessions(data.sessions ?? []);
+        setFeedbackIds(new Set(data.feedbackSessionIds ?? []));
+      })
       .finally(() => setIsLoading(false));
   }, []);
 
@@ -54,6 +58,7 @@ export function ResearchSidebar() {
 
     if (res.ok) {
       setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+      setFeedbackIds((prev) => { const next = new Set(prev); next.delete(sessionId); return next; });
     }
   };
 
@@ -99,6 +104,7 @@ export function ResearchSidebar() {
             <div className="space-y-0.5">
               {filtered.map((session) => {
                 const isActive = pathname === `/research/${session.id}`;
+                const hasFeedback = feedbackIds.has(session.id);
                 return (
                   <div
                     key={session.id}
@@ -113,7 +119,7 @@ export function ResearchSidebar() {
                       <p className="text-sm leading-snug line-clamp-2 font-medium">
                         {truncateQuery(session.query)}
                       </p>
-                      <div className="flex items-center gap-1.5 mt-1">
+                      <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                         <Clock className="h-3 w-3 text-muted-foreground flex-shrink-0" />
                         <span className="text-xs text-muted-foreground">
                           {formatRelativeTime(session.createdAt)}
@@ -127,6 +133,12 @@ export function ResearchSidebar() {
                           <Badge className="text-xs py-0 h-4 px-1.5 bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200 font-normal">
                             error
                           </Badge>
+                        )}
+                        {hasFeedback && (
+                          <MessageSquare
+                            className="h-3 w-3 text-blue-500 flex-shrink-0"
+                            aria-label="Feedback submitted"
+                          />
                         )}
                       </div>
                     </Link>

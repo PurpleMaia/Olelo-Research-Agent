@@ -174,8 +174,13 @@ export function ResearchResults() {
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <div className="flex-1">
                         <h4 className="text-sm font-medium">{source.title}</h4>
-                        {source.publication && (
-                          <p className="text-xs text-muted-foreground mt-1">
+                        {source.author && (
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            by {source.author}
+                          </p>
+                        )}
+                        {(source.publication || source.date) && (
+                          <p className="text-xs text-muted-foreground mt-0.5">
                             {source.publication}
                             {source.date && ` • ${source.date}`}
                           </p>

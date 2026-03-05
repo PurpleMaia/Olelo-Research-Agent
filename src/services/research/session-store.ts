@@ -7,6 +7,7 @@ import type {
   ClarifyingQuestion,
   QuestionAnswer,
 } from '@/types/research';
+import type { ConversationContext } from './claude';
 
 /**
  * CRUD operations for persisted research sessions.
@@ -129,6 +130,61 @@ export async function deleteSession(sessionId: string): Promise<void> {
     .deleteFrom('research_sessions' as any)
     .where('id', '=', sessionId)
     .execute();
+}
+
+/**
+ * Saves conversation context (prior query + summary) to a session's answers
+ * field, stored under a reserved key. This avoids a schema migration while
+ * allowing the orchestrator to pass prior context to Claude for refinements.
+ */
+export async function saveConversationContext(
+  sessionId: string,
+  context: ConversationContext
+): Promise<void> {
+  // We store it in the answers JSONB as a special reserved entry
+  const existing = await db
+    .selectFrom('research_sessions' as any)
+    .select('answers')
+    .where('id', '=', sessionId)
+    .executeTakeFirst();
+
+  const existingAnswers = parseJsonb((existing as any)?.answers) ?? [];
+  const merged = [
+    ...existingAnswers.filter((a: any) => a.questionId !== '__conversation_context__'),
+    { questionId: '__conversation_context__', answer: JSON.stringify(context) },
+  ];
+
+  await db
+    .updateTable('research_sessions' as any)
+    .set({ answers: JSON.stringify(merged), updated_at: new Date() })
+    .where('id', '=', sessionId)
+    .execute();
+}
+
+/**
+ * Retrieves conversation context stored on a session, or null if this is
+ * not a refinement session.
+ */
+export async function getConversationContext(
+  sessionId: string
+): Promise<ConversationContext | null> {
+  const row = await db
+    .selectFrom('research_sessions' as any)
+    .select('answers')
+    .where('id', '=', sessionId)
+    .executeTakeFirst();
+
+  const answers = parseJsonb((row as any)?.answers);
+  if (!Array.isArray(answers)) return null;
+
+  const contextEntry = answers.find((a: any) => a.questionId === '__conversation_context__');
+  if (!contextEntry) return null;
+
+  try {
+    return JSON.parse(contextEntry.answer) as ConversationContext;
+  } catch {
+    return null;
+  }
 }
 
 // --- Helpers ---

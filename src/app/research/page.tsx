@@ -6,6 +6,8 @@ import { ResearchQueryForm } from "@/components/research/ResearchQueryForm";
 import { ClarifyingQuestions } from "@/components/research/ClarifyingQuestions";
 import { ResearchStream } from "@/components/research/ResearchStream";
 import { ResearchResults } from "@/components/research/ResearchResults";
+import { FollowUpInput } from "@/components/research/FollowUpInput";
+import { ResearchFeedback } from "@/components/research/ResearchFeedback";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { RotateCcw } from "lucide-react";
@@ -32,7 +34,15 @@ function ResearchPageContent() {
       {/* Results: visible once research is complete */}
       {state.results && <ResearchResults />}
 
-      {/* Reset: lets user start a new query after completion or error */}
+      {/* Feedback: optional post-research rating, shown once complete */}
+      {state.status === 'complete' && <ResearchFeedback />}
+
+      {/* Follow-up input (and topic drift warning): visible after results */}
+      {(state.status === 'complete' || state.topicDrift.detected) && (
+        <FollowUpInput />
+      )}
+
+      {/* Reset: lets user start a completely new research thread */}
       {(state.status === 'complete' || state.status === 'error') && (
         <div className="flex justify-center pt-2">
           <Button variant="outline" onClick={reset}>

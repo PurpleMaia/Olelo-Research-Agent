@@ -61,6 +61,7 @@ export interface ResearchResult {
 export interface Source {
   id: string;
   title: string;
+  author?: string;
   publication?: string;
   date?: string;
   url?: string;

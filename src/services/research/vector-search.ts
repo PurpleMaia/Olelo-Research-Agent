@@ -10,6 +10,8 @@ export interface DocumentChunkWithDoc {
   docType: string;
   publication: string | null;
   date: string | null;
+  url: string | null;
+  author: string | null;
   similarity: number;
 }
 
@@ -49,16 +51,19 @@ export async function search(
 
   // pgvector cosine distance: <=> (0 = identical, 2 = opposite)
   // similarity = 1 - distance
+  // author is stored in documents.metadata->>'author'
   const baseQuery = `
     SELECT
-      c.id          AS "chunkId",
-      c.content     AS "chunkContent",
-      c.chunk_index AS "chunkIndex",
-      d.id          AS "documentId",
-      d.title       AS "documentTitle",
-      d.doc_type    AS "docType",
-      d.publication AS "publication",
-      d.date        AS "date",
+      c.id                        AS "chunkId",
+      c.content                   AS "chunkContent",
+      c.chunk_index               AS "chunkIndex",
+      d.id                        AS "documentId",
+      d.title                     AS "documentTitle",
+      d.doc_type                  AS "docType",
+      d.publication               AS "publication",
+      d.date                      AS "date",
+      d.url                       AS "url",
+      d.metadata->>'author'       AS "author",
       1 - (c.embedding <=> $1::vector) AS "similarity"
     FROM document_chunks c
     INNER JOIN documents d ON c.document_id = d.id
