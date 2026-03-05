@@ -1,5 +1,8 @@
 export const researchConfig = {
   anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? '',
+  deepseekApiUrl: process.env.DEEPSEEK_API_URL ?? '',
+  deepseekApiKey: process.env.DEEPSEEK_API_KEY ?? '',
+  deepseekModel: process.env.DEEPSEEK_MODEL ?? 'deepseek-chat',
   voyageApiKey: process.env.VOYAGE_API_KEY ?? '',
   embeddingModel: process.env.EMBEDDING_MODEL ?? 'voyage-3',
   embeddingDimension: parseInt(process.env.EMBEDDING_DIMENSION ?? '1024'),
@@ -8,4 +11,7 @@ export const researchConfig = {
   maxChunkTokens: 500,
   chunkOverlapTokens: 50,
   claudeModel: 'claude-sonnet-4-6' as const,
+  papakiloEnabled: process.env.PAPAKILO_SEARCH_ENABLED !== 'false',
+  papakiloMaxTerms: parseInt(process.env.PAPAKILO_MAX_TERMS ?? '3'),
+  papakiloTimeoutMs: parseInt(process.env.PAPAKILO_TIMEOUT_MS ?? '30000'),
 };

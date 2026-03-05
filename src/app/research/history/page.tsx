@@ -17,7 +17,22 @@ export default function ResearchHistoryPage() {
 
   useEffect(() => {
     fetchHistory();
+
+    // Refetch when the tab regains focus
+    const onFocus = () => fetchHistory();
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
   }, []);
+
+  // Poll every 5s while any session is still in-progress
+  useEffect(() => {
+    const hasActive = sessions.some(
+      (s) => s.status === 'researching' || s.status === 'clarifying'
+    );
+    if (!hasActive) return;
+    const interval = setInterval(fetchHistory, 5000);
+    return () => clearInterval(interval);
+  }, [sessions]);
 
   const fetchHistory = async () => {
     try {

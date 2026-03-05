@@ -1,4 +1,5 @@
 export * as orchestrator from './orchestrator';
+export * as papakiloService from './papakilo';
 export * as sessionStore from './session-store';
 export * as claudeService from './claude';
 export * as embeddingService from './embedding';

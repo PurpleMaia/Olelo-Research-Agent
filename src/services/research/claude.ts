@@ -7,7 +7,65 @@ import type {
 } from '@/types/research';
 import { researchConfig } from '@/lib/config/research';
 
-const client = new Anthropic({ apiKey: researchConfig.anthropicApiKey });
+const anthropicClient = researchConfig.anthropicApiKey
+  ? new Anthropic({ apiKey: researchConfig.anthropicApiKey })
+  : null;
+
+/** Call either Anthropic or DeepSeek (OpenAI-compatible) depending on what's configured. */
+async function callLLM(opts: {
+  system: string;
+  userMessage: string;
+  maxTokens: number;
+}): Promise<string> {
+  if (anthropicClient) {
+    const response = await anthropicClient.messages.create({
+      model: researchConfig.claudeModel,
+      max_tokens: opts.maxTokens,
+      system: opts.system,
+      messages: [{ role: 'user', content: opts.userMessage }],
+    });
+    const content = response.content[0];
+    if (content.type !== 'text') throw new Error('Unexpected response type from Claude');
+    return content.text;
+  }
+
+  if (researchConfig.deepseekApiUrl && researchConfig.deepseekApiKey) {
+    const baseUrl = researchConfig.deepseekApiUrl.replace(/\/$/, '');
+    const endpoint = baseUrl.endsWith('/chat/completions')
+      ? baseUrl
+      : `${baseUrl}/chat/completions`;
+
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${researchConfig.deepseekApiKey}`,
+      },
+      body: JSON.stringify({
+        model: researchConfig.deepseekModel,
+        max_tokens: opts.maxTokens,
+        messages: [
+          { role: 'system', content: opts.system },
+          { role: 'user', content: opts.userMessage },
+        ],
+      }),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => res.statusText);
+      throw new Error(`DeepSeek API error ${res.status}: ${errText}`);
+    }
+
+    const data = await res.json();
+    const text: string = data?.choices?.[0]?.message?.content;
+    if (!text) throw new Error('DeepSeek returned no content');
+    return text;
+  }
+
+  throw new Error(
+    'No AI provider configured. Set ANTHROPIC_API_KEY or both DEEPSEEK_API_URL and DEEPSEEK_API_KEY in your .env file.'
+  );
+}
 
 export interface QueryAnalysis {
   needsClarification: boolean;
@@ -85,24 +143,22 @@ Guidelines:
 - The summary should be accessible to a general audience while maintaining scholarly accuracy
 - relatedTopics should suggest 3-5 areas for further research
 - If no documents were found, clearly state this and provide context from general knowledge, marking confidence as "low"
-- Do not fabricate sources or citations`;
+- Do not fabricate sources or citations
+- Sources with docType "papakilo-live" are live-scraped OCR text from historical Hawaiian newspapers — they may contain OCR noise and garbled characters; apply "medium" or "low" confidence unless content is clearly readable, and always include the source URL in your attribution when available
+- Never attempt to "clean up" or infer garbled OCR text — only report what is clearly legible`;
 
 /**
  * Analyzes a user query using Claude to determine if clarification is needed
  * and to extract search terms for the vector database.
  */
 export async function analyzeQuery(query: string): Promise<QueryAnalysis> {
-  const response = await client.messages.create({
-    model: researchConfig.claudeModel,
-    max_tokens: 1024,
+  const text = await callLLM({
     system: QUERY_ANALYSIS_PROMPT,
-    messages: [{ role: 'user', content: query }],
+    userMessage: query,
+    maxTokens: 1024,
   });
 
-  const content = response.content[0];
-  if (content.type !== 'text') throw new Error('Unexpected response type from Claude');
-
-  const jsonMatch = content.text.match(/\{[\s\S]*\}/);
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error('Claude did not return valid JSON for query analysis');
 
   const parsed = JSON.parse(jsonMatch[0]);
@@ -143,17 +199,13 @@ export async function synthesize(
 
   const userMessage = `Research Query: ${query}${answersText}\n\nRetrieved Documents (${context.length} found):\n${contextText || 'No documents found in corpus.'}`;
 
-  const response = await client.messages.create({
-    model: researchConfig.claudeModel,
-    max_tokens: 4096,
+  const text = await callLLM({
     system: SYNTHESIS_PROMPT,
-    messages: [{ role: 'user', content: userMessage }],
+    userMessage,
+    maxTokens: 4096,
   });
 
-  const content = response.content[0];
-  if (content.type !== 'text') throw new Error('Unexpected response type from Claude');
-
-  const jsonMatch = content.text.match(/\{[\s\S]*\}/);
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error('Claude did not return valid JSON for synthesis');
 
   const parsed = JSON.parse(jsonMatch[0]);

@@ -35,12 +35,33 @@ export function ResearchSidebar() {
   const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchSessions = () => {
     fetch('/api/research/history', { credentials: 'include' })
       .then((res) => (res.ok ? res.json() : { sessions: [] }))
       .then((data) => setSessions(data.sessions ?? []))
       .finally(() => setIsLoading(false));
+  };
+
+  // Refetch whenever the user navigates to a new page
+  useEffect(() => {
+    fetchSessions();
+  }, [pathname]);
+
+  // Refetch immediately when a new research request is submitted
+  useEffect(() => {
+    window.addEventListener('research-started', fetchSessions);
+    return () => window.removeEventListener('research-started', fetchSessions);
   }, []);
+
+  // Poll every 3s while any session is actively processing
+  useEffect(() => {
+    const hasActive = sessions.some(
+      (s) => s.status === 'researching' || s.status === 'clarifying'
+    );
+    if (!hasActive) return;
+    const interval = setInterval(fetchSessions, 3000);
+    return () => clearInterval(interval);
+  }, [sessions]);
 
   const handleDelete = async (e: React.MouseEvent, sessionId: string) => {
     e.preventDefault();
