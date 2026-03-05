@@ -25,9 +25,19 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
       <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
         <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
           <div className="container flex h-14 items-center px-4 justify-between">
-            <Link href="/dashboard" className="ml-6 flex items-center space-x-2">
-              <span className="font-bold text-xl">PMF Template</span>
-            </Link>
+            <div className="flex items-center gap-6 ml-6">
+              <Link href="/dashboard" className="flex items-center space-x-2">
+                <span className="font-bold text-xl">PMF Template</span>
+              </Link>
+              <nav className="flex items-center gap-1">
+                <Link
+                  href="/research"
+                  className="text-sm font-medium text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-md hover:bg-accent transition-colors"
+                >
+                  Research
+                </Link>
+              </nav>
+            </div>
 
             <DashboardHeader user={headerUser} />
           </div>
