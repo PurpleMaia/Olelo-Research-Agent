@@ -14,8 +14,5 @@ run_migration scripts/migrate/run-sql.ts src/db/migrations/000002_create_multi_t
 run_migration scripts/migrate/run-sql.ts src/db/migrations/000003_create_research_tables.up.sql
 run_migration scripts/migrate/run-sql.ts src/db/migrations/000004_create_feedback_table.up.sql
 
-echo "[entrypoint] Migrations complete. Building app..."
-npm run build
-
-echo "[entrypoint] Starting app..."
+echo "[entrypoint] Migrations complete. Starting app..."
 exec npm run start
