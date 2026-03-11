@@ -144,9 +144,14 @@ export async function execute(sessionId: string, stream: ResearchStream): Promis
     // Build embedding query — combine original query with answer context for richer search
     const embeddingQuery = buildEmbeddingQuery(session.query, session.answers, analysis.searchTerms);
 
-    // Step 2: Embed the query
+    // Step 2: Embed the query (optional — skip vector search if embedding fails)
     sendActivity(stream, 'searching', 'Preparing semantic search...');
-    const queryEmbedding = await embedding.embed(embeddingQuery);
+    let queryEmbedding: number[] | null = null;
+    try {
+      queryEmbedding = await embedding.embed(embeddingQuery);
+    } catch (embedErr) {
+      console.warn('[orchestrator] Embedding unavailable, skipping vector search:', embedErr);
+    }
 
     // Step 3: Vector search + Papakilo live search in parallel
     sendActivity(stream, 'searching', 'Searching Hawaiian document corpus...', {
@@ -177,7 +182,7 @@ export async function execute(sessionId: string, stream: ResearchStream): Promis
       : Promise.resolve({ articles: [], sources: [], totalFound: 0 });
 
     const [vectorResult, papakiloResult] = await Promise.allSettled([
-      vectorSearch.search(queryEmbedding, { limit: 10 }),
+      queryEmbedding ? vectorSearch.search(queryEmbedding, { limit: 10 }) : Promise.resolve([]),
       papakiloPromise,
     ]);
 
