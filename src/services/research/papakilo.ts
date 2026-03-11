@@ -1,6 +1,41 @@
 import { chromium } from 'playwright-core';
 import type { Source } from '@/types/research';
 
+/**
+ * Returns playwright launch options that work both locally (macOS/Windows with
+ * system Chrome) and on Linux servers (Dokku/Heroku) where Chromium is installed
+ * at a known path.  Set CHROMIUM_EXECUTABLE_PATH to override the auto-detection.
+ */
+function getLaunchOptions() {
+  const executablePath = process.env.CHROMIUM_EXECUTABLE_PATH;
+  const isLinux = process.platform === 'linux';
+  const args = isLinux
+    ? ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+    : [];
+
+  if (executablePath) {
+    return { headless: true as const, executablePath, args };
+  }
+
+  if (isLinux) {
+    // Common Chromium install paths on Ubuntu/Debian
+    const { existsSync } = require('fs') as typeof import('fs');
+    const candidates = [
+      '/usr/bin/chromium-browser',
+      '/usr/bin/chromium',
+      '/usr/bin/google-chrome-stable',
+      '/usr/bin/google-chrome',
+    ];
+    for (const p of candidates) {
+      if (existsSync(p)) return { headless: true as const, executablePath: p, args };
+    }
+    // Nothing found — still try channel so the error message is clear
+    return { headless: true as const, channel: 'chrome' as const, args };
+  }
+
+  return { headless: true as const, channel: 'chrome' as const, args };
+}
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -36,7 +71,7 @@ export interface PapakiloOptions {
 // ---------------------------------------------------------------------------
 
 export async function searchPapakilo(term: string): Promise<PapakiloSearchResult> {
-  const browser = await chromium.launch({ headless: true, channel: 'chrome' });
+  const browser = await chromium.launch(getLaunchOptions());
   try {
     const page = await browser.newPage();
     const searchUrl =
@@ -94,7 +129,7 @@ export async function fetchArticleContent(url: string): Promise<PapakiloArticleC
   const articleIdMatch = url.match(/d=([A-Z0-9\-.]+)/i);
   const articleId = articleIdMatch ? articleIdMatch[1] : 'unknown';
 
-  const browser = await chromium.launch({ headless: true, channel: 'chrome' });
+  const browser = await chromium.launch(getLaunchOptions());
   try {
     const page = await browser.newPage();
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
