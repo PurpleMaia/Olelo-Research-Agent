@@ -14,7 +14,63 @@ import {
 } from '@/components/ui/accordion';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { FileText, ExternalLink, Copy, CheckCircle2, MapPin, BookOpen, Quote } from 'lucide-react';
-import { useState } from 'react';
+import { useState, Fragment } from 'react';
+
+/**
+ * Parses a content string containing [src_N] or [src_N](url) inline citations
+ * and returns an array of text segments and clickable citation links.
+ */
+function renderContentWithLinks(content: string, sources: Source[]): React.ReactNode {
+  // Match [src_N] or [src_N](https://...)
+  const pattern = /\[src_(\d+)\](?:\(([^)]+)\))?/g;
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = pattern.exec(content)) !== null) {
+    // Push preceding text
+    if (match.index > lastIndex) {
+      parts.push(content.slice(lastIndex, match.index));
+    }
+
+    const srcId = `src_${match[1]}`;
+    const inlineUrl = match[2]; // URL from [src_N](url) syntax, if present
+    const source = sources.find((s) => s.id === srcId);
+    const href = inlineUrl ?? source?.url;
+
+    if (href) {
+      parts.push(
+        <a
+          key={`${srcId}-${match.index}`}
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-0.5 text-primary font-mono text-xs font-semibold hover:underline"
+          title={source ? `${source.title}${source.date ? ` · ${source.date}` : ''}` : srcId}
+        >
+          [{srcId}]
+          <ExternalLink className="h-2.5 w-2.5" />
+        </a>
+      );
+    } else {
+      // No URL — render as a non-linked badge
+      parts.push(
+        <span key={`${srcId}-${match.index}`} className="font-mono text-xs text-primary font-semibold">
+          [{srcId}]
+        </span>
+      );
+    }
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  // Push remaining text
+  if (lastIndex < content.length) {
+    parts.push(content.slice(lastIndex));
+  }
+
+  return parts.map((part, i) => <Fragment key={i}>{part}</Fragment>);
+}
 
 const TIER_CONFIG = {
   1: { label: 'Tier 1 — HIGH VALUE', color: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200', border: 'border-l-emerald-500' },
@@ -136,9 +192,9 @@ export function ResearchResults() {
                         </AccordionTrigger>
                         <AccordionContent>
                           <div className="space-y-4 pt-2 pb-3">
-                            {/* Main content */}
+                            {/* Main content with inline citation links */}
                             <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                              {finding.content}
+                              {renderContentWithLinks(finding.content, sources)}
                             </p>
 
                             {/* Key Excerpts */}
