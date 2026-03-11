@@ -33,7 +33,11 @@ function formatRelativeTime(date: Date): string {
   return 'Just now';
 }
 
-export function ResearchSidebar() {
+interface ResearchSidebarProps {
+  onNavigate?: () => void;
+}
+
+export function ResearchSidebar({ onNavigate }: ResearchSidebarProps = {}) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const { theme, setTheme } = useTheme();
@@ -98,7 +102,7 @@ export function ResearchSidebar() {
       {/* New Research */}
       <div className="p-3 border-b">
         <Button asChild className="w-full" size="sm">
-          <Link href="/research">
+          <Link href="/research" onClick={onNavigate}>
             <Plus className="mr-2 h-4 w-4" />
             New Research
           </Link>
@@ -142,6 +146,7 @@ export function ResearchSidebar() {
                     <Link
                       href={`/research/${session.id}`}
                       className="flex-1 min-w-0 pr-5"
+                      onClick={onNavigate}
                     >
                       <p className="text-sm leading-snug line-clamp-2 font-medium">
                         {truncateQuery(session.query)}
@@ -204,7 +209,7 @@ export function ResearchSidebar() {
                 <Settings className="h-3.5 w-3.5" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent side="top" align="end" className="w-48 p-2">
+            <PopoverContent side="top" align="end" className="w-52 p-2">
               {/* Theme */}
               <p className="text-xs font-medium text-muted-foreground px-2 py-1">Theme</p>
               <div className="flex gap-1 px-2 pb-2">
