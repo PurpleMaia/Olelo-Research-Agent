@@ -138,6 +138,50 @@ When generating searchTerms:
 - If answers to clarifying questions are provided, incorporate them to narrow the search terms
 - Include related cultural concepts that would appear in historical documents`;
 
+const SYNTHESIS_PROMPT = `You are a Hawaiian research assistant synthesizing findings from Hawaiian language newspaper archives and the Papa Kilo database. Present findings in a structured, scholarly format that respects Hawaiian culture and language.
+
+Respond with JSON in exactly this format:
+{
+  "summary": "string (2-3 paragraphs synthesizing key findings, preserving Hawaiian terms with English translations in parentheses)",
+  "findings": [
+    {
+      "id": "f1",
+      "tier": 1,
+      "title": "string (English title or description)",
+      "hawaiianTitle": "string (Hawaiian language title if present in source, otherwise omit)",
+      "content": "string (detailed explanation; every claim must include an inline citation like [src_0]; preserve Hawaiian text with English translation in parentheses)",
+      "sources": ["src_0", "src_1"],
+      "confidence": "high" | "medium" | "low",
+      "keyExcerpts": ["string (verbatim Hawaiian or English excerpt from source, clearly legible only)"],
+      "placeNames": ["string (ahupuaʻa, moku, island, district names mentioned)"],
+      "methods": ["string (cultivation methods, practices, techniques described)"]
+    }
+  ],
+  "relatedTopics": ["string"]
+}
+
+Tiering rules — assign EVERY finding a tier:
+- tier 1 (HIGH VALUE): Multiple corroborating sources, high confidence, rich detail
+- tier 2 (MEDIUM VALUE): Single strong source, moderate detail or clarity
+- tier 3 (SUPPLEMENTARY): Partial, inferred, or OCR-degraded content, low confidence
+
+Citation rules — strictly enforced:
+- Every factual claim in "content" must have an inline [src_N] citation
+- Include the source URL in citations whenever available, e.g. "According to [src_0](url)"
+- Preserve Hawaiian language text exactly as it appears in the source, followed by English translation in parentheses
+- Do NOT fabricate sources or citations
+
+Additional guidelines:
+- Include physical descriptions, measurements, colors, textures when present in sources
+- Extract place names (ahupuaʻa, moku, island) into the placeNames array
+- Extract cultivation methods, preparation techniques, ceremonial practices into methods array
+- keyExcerpts: only include clearly legible text — never attempt to reconstruct garbled OCR
+- Sources with docType "papakilo-live" are live-scraped OCR — apply tier 2 or 3 unless content is clearly readable
+- The summary should synthesize across tiers and be accessible to a general audience
+- relatedTopics: suggest 3-5 areas for further research
+- If no documents were found, state this clearly and use tier 3 with confidence "low" for any general knowledge provided
+- If prior research context is provided, build upon it rather than repeating already-covered material`;
+
 const TRIAGE_SYSTEM_PROMPT = `You are a research triage agent for the Papakilo Hawaiian Newspaper Database. Article OCR text is provided directly to you. Assess each article's relevance against the provided research brief and extract structured findings.
 
 ## Process
@@ -331,12 +375,7 @@ export async function triage(
   conversationContext?: ConversationContext
 ): Promise<ResearchResult> {
   if (context.length === 0) {
-    return {
-      summary: 'No articles were retrieved to triage. Try different search terms.',
-      findings: [],
-      sources: [],
-      relatedTopics: [],
-    };
+    return synthesize(query, [], answers, conversationContext);
   }
 
   const articlesText = context
@@ -433,4 +472,94 @@ export async function triage(
     .slice(0, 6);
 
   return { summary, findings, sources, relatedTopics };
+}
+
+/**
+ * Synthesizes research results from retrieved document context using Claude.
+ * Used as a fallback when no documents are retrieved by the triage pipeline,
+ * allowing Claude to respond with general knowledge rather than a hard error.
+ */
+async function synthesize(
+  query: string,
+  context: DocumentContext[],
+  answers?: QuestionAnswer[],
+  conversationContext?: ConversationContext
+): Promise<ResearchResult> {
+  const contextText = context
+    .map((doc, i) => {
+      const meta = [
+        doc.publication,
+        doc.author ? `by ${doc.author}` : null,
+        doc.date,
+        doc.url ? `URL: ${doc.url}` : null,
+      ]
+        .filter(Boolean)
+        .join(' | ');
+      return `[Source src_${i}] ${doc.title}${meta ? ` | ${meta}` : ''}:\n${doc.content}`;
+    })
+    .join('\n\n---\n\n');
+
+  const answersText =
+    answers && answers.length > 0
+      ? `\n\nUser provided additional context:\n${answers
+          .map(
+            (a) =>
+              `- ${a.questionId}: ${Array.isArray(a.answer) ? a.answer.join(', ') : a.answer}`
+          )
+          .join('\n')}`
+      : '';
+
+  const priorContextText = conversationContext
+    ? `\n\nPrior research context (do not repeat, build upon):\n` +
+      `Original query: "${conversationContext.originalQuery}"\n` +
+      `Previous summary: ${conversationContext.summary}`
+    : '';
+
+  const userMessage =
+    `Research Query: ${query}${answersText}${priorContextText}\n\n` +
+    `Retrieved Documents (${context.length} found):\n${contextText || 'No documents found in corpus.'}`;
+
+  const text = await callLLM({
+    system: SYNTHESIS_PROMPT,
+    userMessage,
+    maxTokens: 4096,
+  });
+
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error('Claude did not return valid JSON for synthesis');
+
+  const parsed = JSON.parse(jsonMatch[0]);
+
+  const sources: Source[] = context.map((doc, i) => ({
+    id: `src_${i}`,
+    title: doc.title,
+    author: doc.author,
+    publication: doc.publication,
+    date: doc.date,
+    url: doc.url,
+    type: doc.docType as 'papa-kilo' | 'newspaper' | 'web' | 'other',
+    excerpt: doc.content.slice(0, 200),
+  }));
+
+  const findings = Array.isArray(parsed.findings)
+    ? parsed.findings.map((f: Record<string, unknown>, i: number) => ({
+        id: (f.id as string) ?? `f${i}`,
+        tier: (f.tier as 1 | 2 | 3) ?? 3,
+        title: (f.title as string) ?? '',
+        hawaiianTitle: (f.hawaiianTitle as string) ?? undefined,
+        content: (f.content as string) ?? '',
+        sources: Array.isArray(f.sources) ? (f.sources as string[]) : [],
+        confidence: (f.confidence as 'high' | 'medium' | 'low') ?? 'low',
+        keyExcerpts: Array.isArray(f.keyExcerpts) ? (f.keyExcerpts as string[]) : undefined,
+        placeNames: Array.isArray(f.placeNames) ? (f.placeNames as string[]) : undefined,
+        methods: Array.isArray(f.methods) ? (f.methods as string[]) : undefined,
+      }))
+    : [];
+
+  return {
+    summary: parsed.summary ?? '',
+    findings,
+    sources,
+    relatedTopics: Array.isArray(parsed.relatedTopics) ? parsed.relatedTopics : [],
+  };
 }
