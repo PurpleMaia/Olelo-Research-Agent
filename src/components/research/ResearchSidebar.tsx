@@ -123,7 +123,7 @@ export function ResearchSidebar({ onNavigate }: ResearchSidebarProps = {}) {
       </div>
 
       {/* Session list */}
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 min-h-0">
         <div className="p-2">
           {isLoading ? (
             <p className="text-xs text-muted-foreground text-center py-4">Loading…</p>
