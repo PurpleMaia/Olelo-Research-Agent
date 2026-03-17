@@ -32,7 +32,7 @@ export async function saveFeedback(payload: FeedbackPayload): Promise<FeedbackRe
       payload.accuracy ?? null,
       payload.completeness ?? null,
       payload.comment?.trim() || null,
-      researchConfig.claudeModel,
+      researchConfig.llmModel,
     ]
   );
 
