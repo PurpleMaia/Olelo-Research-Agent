@@ -2,7 +2,7 @@ export const researchConfig = {
   llmApiUrl: process.env.LLM_API_URL ?? process.env.DEEPSEEK_API_URL ?? '',
   llmApiKey: process.env.LLM_API_KEY ?? process.env.DEEPSEEK_API_KEY ?? '',
   llmModel: process.env.LLM_MODEL ?? process.env.DEEPSEEK_MODEL ?? 'deepseek-chat',
-  voyageApiKey: process.env.VOYAGE_API_KEY ?? '',
+voyageApiKey: process.env.VOYAGE_API_KEY ?? '',
   embeddingModel: process.env.EMBEDDING_MODEL ?? 'voyage-3',
   embeddingDimension: parseInt(process.env.EMBEDDING_DIMENSION ?? '1024'),
   vectorSearchLimit: 10,
