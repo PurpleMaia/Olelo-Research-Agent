@@ -7,6 +7,28 @@ import type {
 } from '@/types/research';
 import { researchConfig } from '@/lib/config/research';
 
+/**
+ * Extracts the first well-formed JSON object from a string.
+ * Handles reasoning models that add explanatory text before/after JSON.
+ */
+function extractJSON(text: string): string | null {
+  const start = text.indexOf('{');
+  if (start === -1) return null;
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (escape) { escape = false; continue; }
+    if (ch === '\\' && inString) { escape = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === '{') depth++;
+    if (ch === '}') { depth--; if (depth === 0) return text.slice(start, i + 1); }
+  }
+  return null;
+}
+
 /** Calls the configured OpenAI-compatible LLM API. */
 async function callLLM(opts: {
   system: string;
@@ -291,10 +313,10 @@ export async function analyzeQuery(
     maxTokens: 8192,
   });
 
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error('Claude did not return valid JSON for query analysis');
+  const jsonStr = extractJSON(text);
+  if (!jsonStr) throw new Error('Claude did not return valid JSON for query analysis');
 
-  const parsed = JSON.parse(jsonMatch[0]);
+  const parsed = JSON.parse(jsonStr);
 
   return {
     needsClarification: Boolean(parsed.needsClarification),
@@ -401,10 +423,10 @@ export async function triage(
     maxTokens: 16000,
   });
 
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error('Triage agent did not return valid JSON');
+  const jsonStr = extractJSON(text);
+  if (!jsonStr) throw new Error('Triage agent did not return valid JSON');
 
-  const parsed: TriageOutput = JSON.parse(jsonMatch[0]);
+  const parsed: TriageOutput = JSON.parse(jsonStr);
 
   // Build sources from triage articles (all tiers — let UI filter by tier)
   const sources: Source[] = parsed.articles.map((a, i) => {
@@ -512,10 +534,10 @@ async function synthesize(
     maxTokens: 4096,
   });
 
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error('Claude did not return valid JSON for synthesis');
+  const jsonStr = extractJSON(text);
+  if (!jsonStr) throw new Error('Claude did not return valid JSON for synthesis');
 
-  const parsed = JSON.parse(jsonMatch[0]);
+  const parsed = JSON.parse(jsonStr);
 
   const sources: Source[] = context.map((doc, i) => ({
     id: `src_${i}`,
