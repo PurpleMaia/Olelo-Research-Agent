@@ -10,6 +10,7 @@ import type { ConversationContext } from './claude';
 import * as embedding from './embedding';
 import * as vectorSearch from './vector-search';
 import * as papakilo from './papakilo';
+import * as ctahrSearch from './ctahr-search';
 import { researchConfig } from '@/lib/config/research';
 import { detectBriefType, loadBrief } from './briefs';
 import type { ResearchStream } from './stream';
@@ -154,7 +155,7 @@ export async function execute(sessionId: string, stream: ResearchStream): Promis
       console.warn('[orchestrator] Embedding unavailable, skipping vector search:', embedErr);
     }
 
-    // Step 3: Vector search + Papakilo live search in parallel
+    // Step 3: Vector search + Papakilo live search + CTAHR document search in parallel
     sendActivity(stream, 'searching', 'Searching Hawaiian document corpus...', {
       source: 'Document Corpus',
     });
@@ -163,6 +164,12 @@ export async function execute(sessionId: string, stream: ResearchStream): Promis
     if (researchConfig.papakiloEnabled) {
       sendActivity(stream, 'searching', 'Searching Papakilo Database for Hawaiian newspapers...', {
         source: 'Papakilo Database',
+      });
+    }
+
+    if (researchConfig.ctahrEnabled) {
+      sendActivity(stream, 'searching', 'Searching CTAHR document collection...', {
+        source: 'CTAHR Documents',
       });
     }
 
@@ -182,9 +189,17 @@ export async function execute(sessionId: string, stream: ResearchStream): Promis
         ])
       : Promise.resolve({ articles: [], sources: [], totalFound: 0 });
 
-    const [vectorResult, papakiloResult] = await Promise.allSettled([
+    const ctahrPromise = researchConfig.ctahrEnabled
+      ? ctahrSearch.searchCtahr(analysis.searchTerms, {
+          maxTerms: researchConfig.ctahrMaxTerms,
+          maxResultsPerTerm: researchConfig.ctahrMaxResultsPerTerm,
+        })
+      : Promise.resolve({ documents: [], totalFound: 0 });
+
+    const [vectorResult, papakiloResult, ctahrResult] = await Promise.allSettled([
       queryEmbedding ? vectorSearch.search(queryEmbedding, { limit: 10 }) : Promise.resolve([]),
       papakiloPromise,
+      ctahrPromise,
     ]);
 
     const vectorResults = vectorResult.status === 'fulfilled' ? vectorResult.value : [];
@@ -192,6 +207,10 @@ export async function execute(sessionId: string, stream: ResearchStream): Promis
       papakiloResult.status === 'fulfilled'
         ? papakiloResult.value
         : { articles: [], sources: [], totalFound: 0 };
+    const ctahrData =
+      ctahrResult.status === 'fulfilled'
+        ? ctahrResult.value
+        : { documents: [], totalFound: 0 };
 
     await sleep(300);
 
@@ -230,6 +249,25 @@ export async function execute(sessionId: string, stream: ResearchStream): Promis
       }
     }
 
+    // Step 4c: Report CTAHR findings
+    if (researchConfig.ctahrEnabled) {
+      if (ctahrData.documents.length > 0) {
+        sendActivity(stream, 'found', `Found ${ctahrData.documents.length} CTAHR documents`, {
+          source: 'CTAHR Documents',
+          count: ctahrData.documents.length,
+        });
+        for (const doc of ctahrData.documents.slice(0, 3)) {
+          sendActivity(stream, 'reading', `Reading: ${doc.filename}`, {
+            source: 'CTAHR Documents',
+            articleTitle: doc.filename,
+          });
+          await sleep(100);
+        }
+      } else {
+        sendActivity(stream, 'searching', 'No CTAHR documents found for these search terms');
+      }
+    }
+
     // Step 5: Triage articles against research brief
     sendActivity(stream, 'analyzing', 'Triaging articles against research brief...');
 
@@ -252,7 +290,17 @@ export async function execute(sessionId: string, stream: ResearchStream): Promis
       url: a.url ?? undefined,
     }));
 
-    const mergedContext = [...vectorContext, ...papakiloContext];
+    const ctahrContext = ctahrData.documents.map((doc) => ({
+      content: doc.content.slice(0, 2000),
+      title: doc.filename,
+      docType: 'ctahr' as const,
+      publication: `CTAHR ${doc.collection.toUpperCase()}`,
+      date: undefined,
+      url: undefined,
+      author: undefined,
+    }));
+
+    const mergedContext = [...vectorContext, ...papakiloContext, ...ctahrContext];
 
     const briefType = detectBriefType(session.query, analysis.searchTerms);
     const briefText = loadBrief(briefType);

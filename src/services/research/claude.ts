@@ -46,7 +46,11 @@ async function callLLM(opts: {
   }
 
   const data = await res.json();
-  const text: string = data?.choices?.[0]?.message?.content;
+  const msg = data?.choices?.[0]?.message;
+  // Reasoning models (e.g. Qwen) put the final answer in `content` and
+  // thinking in `reasoning_content`. Fall back to reasoning_content if
+  // content is empty (happens when max_tokens is exhausted mid-think).
+  const text: string = msg?.content || msg?.reasoning_content || msg?.provider_specific_fields?.reasoning_content;
   if (!text) throw new Error('LLM returned no content');
   return text;
 }
@@ -284,7 +288,7 @@ export async function analyzeQuery(
   const text = await callLLM({
     system: QUERY_ANALYSIS_PROMPT,
     userMessage,
-    maxTokens: 1024,
+    maxTokens: 8192,
   });
 
   const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -394,7 +398,7 @@ export async function triage(
   const text = await callLLM({
     system: TRIAGE_SYSTEM_PROMPT,
     userMessage,
-    maxTokens: 6000,
+    maxTokens: 16000,
   });
 
   const jsonMatch = text.match(/\{[\s\S]*\}/);

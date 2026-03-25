@@ -74,7 +74,7 @@ export interface Source {
   publication?: string;
   date?: string;
   url?: string;
-  type: 'papa-kilo' | 'papakilo-live' | 'newspaper' | 'web' | 'other';
+  type: 'papa-kilo' | 'papakilo-live' | 'newspaper' | 'web' | 'ctahr' | 'other';
   excerpt?: string;
 }
 

@@ -42,6 +42,7 @@
     "@radix-ui/react-tooltip": "^1.2.8",
     "arctic": "^3.7.0",
     "argon2": "^0.44.0",
+    "better-sqlite3": "^12.8.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -63,8 +64,12 @@
     "typescript": "^5",
     "zod": "^4.3.5"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": ["argon2", "better-sqlite3", "esbuild"]
+  },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20",
     "@types/pg": "^8.16.0",
     "@types/react": "^19",

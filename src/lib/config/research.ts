@@ -9,7 +9,10 @@ export const researchConfig = {
   vectorSearchThreshold: 0.7,
   maxChunkTokens: 500,
   chunkOverlapTokens: 50,
-  papakiloEnabled: process.env.PAPAKILO_SEARCH_ENABLED !== 'false',
+  papakiloEnabled: process.env.PAPAKILO_SEARCH_ENABLED === 'true',
   papakiloMaxTerms: parseInt(process.env.PAPAKILO_MAX_TERMS ?? '3'),
   papakiloTimeoutMs: parseInt(process.env.PAPAKILO_TIMEOUT_MS ?? '30000'),
+  ctahrEnabled: process.env.CTAHR_SEARCH_ENABLED !== 'false',
+  ctahrMaxTerms: parseInt(process.env.CTAHR_MAX_TERMS ?? '3'),
+  ctahrMaxResultsPerTerm: parseInt(process.env.CTAHR_MAX_RESULTS_PER_TERM ?? '5'),
 };
