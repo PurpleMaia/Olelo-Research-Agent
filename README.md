@@ -1,166 +1,295 @@
-# PMF App Template
+# PurpleMaia Olelo Research Agent
 
-A full-stack [Next.js](https://nextjs.org) application template with authentication, database migrations, and automated Dokku deployment.
+An AI-powered research tool for querying the CTAHR (College of Tropical Agriculture and Human Resources) document collection. Users submit natural language questions and the system searches 5,400+ local PDFs, synthesizes findings using a local LLM, and returns a narrative summary with tiered source citations.
+
+---
+
+## How It Works
+
+1. User submits a research query via the web UI
+2. The LLM analyzes the query and generates search terms
+3. The system runs parallel searches across:
+   - **CTAHR local document index** (primary) — 5,456 PDFs/DOCX indexed via SQLite FTS5
+   - **Vector search** — semantic search over ingested document chunks (pgvector)
+   - **Papakilo** (optional, disabled by default) — live Hawaiian newspaper scraper
+4. Relevant documents are triaged into tiers (high / medium / peripheral)
+5. A narrative summary is generated from the tier 1–2 findings
+6. Results stream to the UI in real time via Server-Sent Events
+
+---
+
+## Technology Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Framework | Next.js 16 (App Router, Turbopack) |
+| Language | TypeScript 5 / Node.js 20 |
+| LLM | LM Studio (OpenAI-compatible) — Qwen 3.5 397B-A17B |
+| Document Search | SQLite FTS5 via `better-sqlite3` |
+| Vector Search | PostgreSQL + pgvector (Kysely ORM) |
+| UI | Radix UI + Tailwind CSS + Shadcn |
+| Auth | Custom session auth + Google OAuth |
+| Package Manager | pnpm |
+| Deployment | Dokku |
+
+---
 
 ## Quick Start
 
-### 1. Initialize the Project
+### Prerequisites
 
-After cloning this repository, run the initialization script to set up your development and production environments:
+- Node.js 20+
+- pnpm
+- Docker (for PostgreSQL + pgvector)
+- The `ctahr-pdfs/` document collection placed in `Agentic-Pdf-tool/pdf-console-agent-main/ctahr-pdfs/`
+
+### 1. Install dependencies
 
 ```bash
-pnpm run init
+pnpm install
 ```
 
-This will:
-- Set up SSH access to the Dokku host
-- Create Dokku applications (dev & prod)
-- Set up Postgres databases
-- Run database migrations
-- Create your admin user account
-- Seed test data
+### 2. Configure environment
 
-**Note:** You'll need the PMF Dokku host address from your PMF Builder admin.
+Copy and fill in `.env`:
 
-For detailed information about the initialization process, see [scripts/init/README.md](scripts/init/README.md).
+```bash
+cp .env.example .env
+```
 
-### 2. Start Development
+Key variables:
 
-Once initialization is complete, start the development server:
+```env
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/myapp
+PASSWORD_HASH_SECRET=your-secret
+
+# LM Studio (OpenAI-compatible endpoint)
+DEEPSEEK_API_URL=https://your-lmstudio-host/v1
+DEEPSEEK_API_KEY=your-api-key
+DEEPSEEK_MODEL=your-model-name
+
+# Papakilo scraper (disabled by default)
+# PAPAKILO_SEARCH_ENABLED=true
+```
+
+### 3. Start the database
+
+```bash
+docker run -d \
+  --name olelo-postgres \
+  -e POSTGRES_PASSWORD=postgres \
+  -p 5432:5432 \
+  pgvector/pgvector:pg17
+```
+
+### 4. Create the database and run migrations
+
+```bash
+docker exec olelo-postgres psql -U postgres -c "CREATE DATABASE myapp;"
+bash ./scripts/migrate/up.sh
+```
+
+### 5. Seed test accounts
+
+```bash
+pnpm init:seed
+```
+
+### 6. Build the CTAHR document index
+
+```bash
+cd Agentic-Pdf-tool/pdf-console-agent-main
+npm install
+node index-docs.js
+```
+
+This indexes ~5,560 files and takes 10–30 minutes depending on hardware. The app works without it — CTAHR search results will just be empty until indexing completes.
+
+### 7. Start the development server
 
 ```bash
 pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to see your application.
+Open [http://localhost:3000](http://localhost:3000).
+
+---
+
+## Test Accounts
+
+Run `pnpm init:seed` to create these accounts (safe to run once — errors if already seeded).
+
+| Username | Email | Password | Role |
+|----------|-------|----------|------|
+| `jdoe` | john.doe@example.com | `password123!` | Guest |
+| `jsmith` | jane.smith@example.com | `password123!` | Member |
+| `ajohnson` | alice.johnson@example.com | `password123!` | Org Admin |
+
+### Account Types
+
+- **Guest** — Read-only. Can view research results but cannot initiate new research.
+- **Member** — Standard internal user. Can run research queries, view history, and submit feedback. Belongs to an organization.
+- **Org Admin** — Manages members and views all research sessions within their organization.
+- **Sysadmin** — Platform-level administrator with access to all organizations. Created interactively via:
+  ```bash
+  pnpm tsx scripts/init/sysadmin.ts
+  ```
+
+---
 
 ## Repository Structure
 
 ```
 .
-├── scripts/
-│   ├── init/              # Project initialization scripts
-│   ├── migrate/           # Database migration scripts
-│   └── destroy/           # Cleanup scripts
 ├── src/
-│   ├── app/               # Next.js pages, layouts, middleware, server actions
-│   │   └── api/           # API routes (auth, OAuth callbacks)
-│   ├── components/        # Reusable UI components
-│   │   ├── ui/            # Shadcn UI primitives (buttons, dialogs, etc.)
-│   │   ├── shared/        # App-specific shared components
-│   │   └── auth/          # Authentication UI components
-│   ├── db/                # Database layer (Kysely client, migrations, types)
-│   ├── hooks/             # Custom React hooks and context providers
-│   ├── lib/               # Core utilities (auth, errors, helpers)
-│   ├── services/          # Business logic services (data access, CRUD)
-│   └── types/             # TypeScript type definitions
-├── .env                   # Environment variables (never commit)
-├── package.json
-└── ...
+│   ├── app/
+│   │   ├── api/
+│   │   │   ├── auth/          # Login, register, session, Google OAuth
+│   │   │   └── research/      # Research pipeline API routes + SSE stream
+│   │   ├── research/          # Research UI pages
+│   │   └── dashboard/         # Role-based dashboards (guest/member/admin/sysadmin)
+│   ├── components/
+│   │   ├── research/          # ResearchQueryForm, ResearchResults, ActivityStream
+│   │   ├── auth/              # Login/register forms
+│   │   └── ui/                # Shadcn UI primitives
+│   ├── services/
+│   │   └── research/
+│   │       ├── orchestrator.ts   # 7-step research pipeline
+│   │       ├── claude.ts         # LLM calls (query analysis, triage, narrative)
+│   │       ├── ctahr-search.ts   # CTAHR FTS5 document search
+│   │       ├── papakilo.ts       # Hawaiian newspaper scraper (Playwright)
+│   │       ├── vector-search.ts  # pgvector semantic search
+│   │       ├── embedding.ts      # Query embedding generation
+│   │       ├── session-store.ts  # DB session persistence
+│   │       └── stream.ts         # SSE stream management
+│   ├── lib/
+│   │   ├── auth/              # Session validation, OAuth
+│   │   └── config/
+│   │       └── research.ts    # Research service configuration
+│   ├── db/
+│   │   ├── schema.ts          # Kysely database schema
+│   │   └── migrations/        # SQL migration files
+│   └── types/
+│       └── research.ts        # Shared TypeScript types
+├── Agentic-Pdf-tool/
+│   └── pdf-console-agent-main/
+│       ├── index-docs.js      # Build/update SQLite FTS5 index
+│       ├── search-docs.js     # Query the index (CLI)
+│       ├── view-doc.js        # Extract and display a single document
+│       ├── ctahr-pdfs/        # Document collection (gitignored)
+│       └── catalog.db         # Generated FTS5 index (gitignored)
+├── scripts/
+│   ├── init/                  # Seed and sysadmin creation scripts
+│   ├── migrate/               # Database migration scripts
+│   └── destroy/               # Cleanup scripts
+└── .env                       # Environment variables (never commit)
 ```
 
-Each layer in `src/` has its own README explaining its purpose and conventions:
+---
 
-| Directory | README | Description |
-|-----------|--------|-------------|
-| `src/app/` | [README](src/app/README.md) | Next.js pages, layouts, and server actions |
-| `src/app/api/` | [README](src/app/api/README.md) | API routes (auth only — use server actions for CRUD) |
-| `src/components/` | [README](src/components/README.md) | Reusable UI building blocks |
-| `src/db/` | [README](src/db/README.md) | Database client, migrations, and generated types |
-| `src/hooks/` | [README](src/hooks/README.md) | Custom React hooks and context providers |
-| `src/lib/` | [README](src/lib/README.md) | Core utilities and auth helpers |
-| `src/services/` | [README](src/services/README.md) | Business logic and data access |
-| `src/types/` | [README](src/types/README.md) | Shared TypeScript interfaces and types |
+## Research Pipeline
 
-Script documentation:
+```
+User Query
+    ↓
+[INITIATE]  Analyze query with LLM → generate search terms
+    ↓
+[CLARIFY]   Optional clarifying questions (if query is ambiguous)
+    ↓
+[EXECUTE]
+  ├── CTAHR FTS5 search (primary)
+  ├── Vector search via pgvector
+  └── Papakilo scraper (optional, off by default)
+    ↓
+[TRIAGE]    LLM triage agent assigns tier 1/2/3 to each document
+    ↓
+[NARRATIVE] LLM generates prose summary from tier 1+2 findings
+    ↓
+[PERSIST]   Save results to PostgreSQL
+    ↓
+[STREAM]    SSE delivers results to UI in real time
+```
 
-- [scripts/init/README.md](scripts/init/README.md) — Project initialization
-- [scripts/migrate/README.md](scripts/migrate/README.md) — Database migration management
-- [scripts/destroy/README.md](scripts/destroy/README.md) — Application cleanup and removal
+---
 
-## Development Workflow
+## CTAHR Document Index
 
-### Local Development
+The index covers 5,456 documents across collections including:
 
-1. Create a feature branch or work on a local branch:
-   ```bash
-   git checkout -b feature/my-feature
-   ```
-2. Make your changes and test locally with `pnpm dev`
-3. Create database migrations if needed (`pnpm migrate:create <name>`)
-4. Commit your changes
+| Collection | Description |
+|-----------|-------------|
+| CV | Faculty CVs |
+| FacultySites | Faculty research sites |
+| HANA AI / Hanai Ai | Newsletter archive |
+| Ext_Pub | Extension publications |
+| Forestry | Forestry research |
+| MasterGardener | Master Gardener program |
+| CROP WEBSITE | Crop production resources |
+| ROD | Rapid Ohia Death research |
+| CBB | Coffee Berry Borer research |
+| SMARTS2 | Sustainable ag research |
+| New_Farmer | New farmer resources |
+| YFB | Yellow-Faced Bee research |
+| 4H | 4-H program materials |
 
-### Deploying to Dev
-
-Push your branch to the **dev** environment for testing:
+To rebuild the index from scratch:
 
 ```bash
-git push dokku-dev my-branch:master
+cd Agentic-Pdf-tool/pdf-console-agent-main
+node index-docs.js --rebuild
 ```
 
-Test on the dev environment to verify everything works as expected.
-
-### Deploying to Production
-
-Once changes are validated on dev, push to **production**:
+To search the index directly from the CLI:
 
 ```bash
-git push dokku main:master
+node search-docs.js "soil conservation" --limit 20
+node search-docs.js "taro cultivation" --type pdf
+node search-docs.js --stats
 ```
 
-Database migrations run automatically during deployment via the predeploy hook in `app.json`.
+---
 
-### Database Migrations
+## Database Migrations
 
 Create a new migration:
 ```bash
 pnpm migrate:create <migration_name>
 ```
 
-Run migrations against dev:
+Run all pending migrations:
 ```bash
-pnpm migrate:up d
+bash ./scripts/migrate/up.sh
 ```
 
-Run migrations against prod:
+---
+
+## Configuration Reference
+
+All research service settings are in `src/lib/config/research.ts` and controlled via environment variables:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LLM_API_URL` / `DEEPSEEK_API_URL` | — | OpenAI-compatible LLM endpoint |
+| `LLM_API_KEY` / `DEEPSEEK_API_KEY` | — | API key for LLM |
+| `LLM_MODEL` / `DEEPSEEK_MODEL` | `deepseek-chat` | Model name |
+| `VOYAGE_API_KEY` | — | Voyage AI key for embeddings |
+| `PAPAKILO_SEARCH_ENABLED` | `false` | Enable Papakilo newspaper scraper |
+| `CTAHR_SEARCH_ENABLED` | `true` | Enable CTAHR document search |
+| `CTAHR_MAX_TERMS` | `3` | Max search terms sent to FTS5 |
+| `CTAHR_MAX_RESULTS_PER_TERM` | `5` | Max results per search term |
+
+---
+
+## Deployment
+
+Push to the Dokku remote to deploy:
+
 ```bash
-pnpm migrate:up p
+# Dev environment
+git push dokku-dev main:master
+
+# Production
+git push dokku main:master
 ```
 
-See [scripts/migrate/README.md](scripts/migrate/README.md) for detailed migration workflows.
-
-## Technology Stack
-
-- **Framework:** [Next.js](https://nextjs.org) 15 with App Router
-- **Language:** TypeScript
-- **Database:** PostgreSQL with [Kysely](https://kysely.dev) query builder
-- **UI Components:** [Shadcn UI](https://ui.shadcn.com) + [Radix UI](https://www.radix-ui.com)
-- **Styling:** Tailwind CSS
-- **Authentication:** Custom auth with secure password hashing (argon2) + Google OAuth
-- **Validation:** Zod
-- **Migrations:** [golang-migrate](https://github.com/golang-migrate/migrate)
-- **Deployment:** [Dokku](https://dokku.com) (PaaS)
-- **Package Manager:** pnpm
-
-## Environment Variables
-
-After initialization, your `.env` file will contain:
-
-- `PMF_DOKKU_HOST` — Your Dokku host address
-- `DATABASE_URL` — Active database connection URL
-- `DEV_URL` — Development database URL
-- `PROD_URL` — Production database URL
-- `PASSWORD_HASH_SECRET` — Pepper for password hashing
-- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — OAuth credentials
-- `NEXT_PUBLIC_BASE_URL` — Application base URL
-
-**Never commit the `.env` file to version control.**
-
-## Need Help?
-
-- **Initialization issues?** See [scripts/init/README.md](scripts/init/README.md)
-- **Migration problems?** See [scripts/migrate/README.md](scripts/migrate/README.md)
-- **Want to start over?** See [scripts/destroy/README.md](scripts/destroy/README.md)
-- **Next.js questions?** Check the [Next.js Documentation](https://nextjs.org/docs)
-- **Kysely questions?** Check the [Kysely Documentation](https://kysely.dev)
-- **Dokku questions?** Check the [Dokku Documentation](https://dokku.com/docs)
+Migrations run automatically via the predeploy hook in `app.json`.
