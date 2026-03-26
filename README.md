@@ -160,6 +160,58 @@ Run `pnpm init:seed` to create these accounts (safe to run once — errors if al
 
 ---
 
+## Writing Good Research Queries
+
+The collection is focused on Hawaiian agriculture, ecology, and rural extension services. Questions that are specific and Hawaii-grounded return the best results.
+
+### Query Tips
+
+- Be specific about **what you want to know** — cultivation, disease management, business planning, ecology
+- Mention **Hawaii** when relevant — the collection is heavily Hawaii-specific
+- Name the **crop, pest, or topic** directly rather than asking broadly
+- The more specific the question, the more precisely the triage agent can rank results
+
+### Example Queries by Topic
+
+**Crop & cultivation**
+- "What are the best practices for growing taro in Hawaii?"
+- "How do I manage coffee berry borer on my farm?"
+- "What cover crops work well in Hawaiian soil?"
+
+**Pest & disease**
+- "What are treatment options for Rapid Ohia Death?"
+- "How do I control invasive species in Hawaiian forests?"
+- "What integrated pest management strategies work for tomatoes?"
+
+**Soil & water**
+- "How do I improve soil health and composting on a small farm?"
+- "What irrigation methods are recommended for dry land farming in Hawaii?"
+
+**Business & farming**
+- "What resources are available for new farmers in Hawaii?"
+- "How do I start an aquaponics operation in Hawaii?"
+
+### High-Signal Search Topics
+
+These topics map strongly to specific collections in the index:
+
+| Topic | Strong Collections |
+|-------|--------------------|
+| Taro cultivation | CROP WEBSITE, Ext_Pub, SMARTS2 |
+| Soil health & composting | MasterGardener, Soil Health Workshop, SMARTS2 |
+| Integrated pest management | EPP, Past Events, Ext_Pub |
+| Coffee berry borer | CBB, Ext_Pub |
+| Aquaponics & hydroponics | CTAHR, Ext_Pub |
+| Native plant restoration | Forestry, NREM |
+| Small farm business planning | New_Farmer, CES, Ext_Pub |
+| Water & irrigation management | NREM, SMARTS2, CROP WEBSITE |
+| Invasive species | ROD, Forestry, EPP |
+| Food safety & postharvest | Ext_Pub, CROP WEBSITE |
+
+> **Note:** The ROD (Rapid Ohia Death), CBB (Coffee Berry Borer), and YFB (Yellow-Faced Bee) collections contain highly specialized research not widely available elsewhere. Queries on those topics will surface unique documents.
+
+---
+
 ## Repository Structure
 
 ```
