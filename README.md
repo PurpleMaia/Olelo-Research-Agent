@@ -87,8 +87,8 @@ GOOGLE_CLIENT_SECRET=your-google-client-secret
 GOOGLE_REDIRECT_URI=http://localhost:3000/api/auth/google/callback
 
 # LM Studio — OpenAI-compatible LLM endpoint (contact team for values)
-DEEPSEEK_API_URL=https://lmstudio-oahu.purplemaia.org/v1
-DEEPSEEK_API_KEY=pitching-moi-cartoon-survived
+DEEPSEEK_API_URL=your-url
+DEEPSEEK_API_KEY=your-key
 DEEPSEEK_MODEL=cloud-qwen3.5-397b-A17b
 
 # Voyage AI — used for vector embeddings (https://dash.voyageai.com)
